@@ -13,8 +13,6 @@ paramsMLX90640 mlx90640;
 MLXCamera::MLXCamera(TFT_eSPI& _tft)
  : tft(_tft)
 {
-  for (int i = 0; i < 768; i++)
-    pixels[i] = random(0, 41);
 }
 
 bool MLXCamera::init()
@@ -22,8 +20,8 @@ bool MLXCamera::init()
   // Connect thermal sensor.
   Wire.begin();
   Wire.setClock(400000); // Increase I2C clock speed to 400kHz
-  Wire.beginTransmission((uint8_t)MLX90640_address);
-  if (Wire.endTransmission() != 0)
+
+  if (!isConnected())
   {
     Serial.println("MLX90640 not detected at default I2C address. Please check wiring.");
     return false;
@@ -48,8 +46,21 @@ bool MLXCamera::init()
     return false;
   }
 
-  // Set refresh rate
-  MLX90640_SetRefreshRate(MLX90640_address, 0x05); // Set rate to 8Hz effective - Works at 800kHz
+  MLX90640_SetChessMode(MLX90640_address);
+  status = MLX90640_SetRefreshRate(MLX90640_address, 0x05); // Set rate to 8Hz effective - Works at 800kHz
+  if (status != 0)
+  {
+    Serial.println("SetRefreshRate failed");
+    return false;
+  }
+  
+  Serial.printf("RefreshRate: %.1f Hz\n", getRefreshRateInHz());
+  Serial.printf("Resolution: %d-bit\n", getResolutionInBit());
+  if (isInterleaved())
+    Serial.println("Mode: Interleaved");
+  else
+    Serial.println("Mode: Chess");
+
   
   // Once EEPROM has been read at 400kHz we can increase
   Wire.setClock(800000);
@@ -60,37 +71,118 @@ bool MLXCamera::init()
   return true;
 }
 
+bool MLXCamera::isConnected() const
+{
+  Wire.beginTransmission((uint8_t)MLX90640_address);
+  return Wire.endTransmission() == 0; //Sensor did not ACK
+}
+
+float MLXCamera::getRefreshRateInHz() const
+{
+   int rate = MLX90640_GetRefreshRate(MLX90640_address);
+   switch(rate) {
+    case 0: return 0.5f;
+    case 1: return 1.f;
+    case 2: return 2.f;
+    case 3: return 4.f;
+    case 4: return 8.f;
+    case 5: return 16.f;
+    case 6: return 32.f;
+    case 7: return 64.f;
+    default : return 0.f;
+   }
+}
+
+int MLXCamera::getResolutionInBit() const
+{
+   int res = MLX90640_GetCurResolution(MLX90640_address);
+   switch(res) {
+    case 0: return 16;
+    case 1: return 17;
+    case 2: return 18;
+    case 3: return 19;
+    default : return 0;
+   }
+}
+
+bool MLXCamera::isInterleaved() const
+{
+   return MLX90640_GetCurMode(MLX90640_address) == 0;
+}
+
+bool MLXCamera::isChessMode() const
+{
+   return MLX90640_GetCurMode(MLX90640_address) == 1;
+}
+
 void MLXCamera::readImage()
 {
-//  readPixels();
+  readPixels();
   setTempScale();
 }
 
-// Read pixel data from MLX90640.
 void MLXCamera::readPixels()
 {
-  float emissivity = 0.95;
-  
+  const float emissivity = 0.95;
+
   for (byte x = 0 ; x < 2 ; x++) //Read both subpages
   {
     uint16_t mlx90640Frame[834];
     int status = MLX90640_GetFrameData(MLX90640_address, mlx90640Frame);
     if (status < 0)
     {
-      Serial.print("GetFrame Error: ");
-      Serial.println(status);
+      if (status == -8)
+      {
+        // Could not aquire frame data in certain time, I2C frequency may be too low
+        Serial.println("GetFrame Error: could not aquire frame data in time");
+      }
+      else
+      {
+        Serial.printf("GetFrame Error: %d\n", status);
+      }
     }
+
+    long start = millis(); 
     
-//    float vdd = MLX90640_GetVdd(mlx90640Frame, &mlx90640);
-    float Ta = MLX90640_GetTa(mlx90640Frame, &mlx90640);
-    
+    float Ta = MLX90640_GetTa(mlx90640Frame, &mlx90640);    
     float tr = Ta - TA_SHIFT; //Reflected temperature based on the sensor ambient temperature  
     
     MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, pixels);
+
+    Serial.printf(" Calculate: %d\n", millis() - start);
   }
 }
 
-// Get color for temp value.
+uint16_t MLXCamera::getFalseColor(float value) const
+{
+    // Heatmap code borrowed from: http://www.andrewnoske.com/wiki/Code_-_heatmaps_and_color_gradients
+    static float color[][3] = { {0,0,0}, {0,0,255}, {0,255,0}, {255,255,0}, {255,0,0}, {255,0,255} };
+//    static const float color[][3] = { {0,0,20}, {0,0,100}, {80,0,160}, {220,40,180}, {255,200,20}, {255,235,20}, {255,255,255} };
+    static const int NUM_COLORS = sizeof(color) / sizeof(color[0]);
+    value = (value - minTemp) / (maxTemp-minTemp);
+    
+    if(value <= 0.f)
+    {
+      return tft.color565(color[0][0], color[0][1], color[0][2]);
+    }
+      
+    if(value >= 1.f)
+    {
+      return tft.color565(color[NUM_COLORS-1][0], color[NUM_COLORS-1][1], color[NUM_COLORS-1][2]);
+    }
+
+    value *= NUM_COLORS-1;
+    const int idx1 = floor(value);
+    const int idx2 = idx1+1;
+    const float fractBetween = value - float(idx1);
+  
+    const byte ir = ((color[idx2][0] - color[idx1][0]) * fractBetween) + color[idx1][0];
+    const byte ig = ((color[idx2][1] - color[idx1][1]) * fractBetween) + color[idx1][1];
+    const byte ib = ((color[idx2][2] - color[idx1][2]) * fractBetween) + color[idx1][2];
+
+    return tft.color565(ir, ig, ib);
+}
+
 uint16_t MLXCamera::getColor(float val) const
 {
   /*
@@ -155,11 +247,14 @@ void MLXCamera::setAbcd()
   d = minTemp + (maxTemp - minTemp) * 0.8182;
 }
 
-void MLXCamera::drawImage() const
+void MLXCamera::drawImage(int scale) const
 {
   for (int y=0; y<24; y++) {
     for (int x=0; x<32; x++) {
-     tft.fillRect(tft.cursor_x + 8 + x*7, tft.cursor_y + 8 + y*7, 7, 7, getColor(pixels[(31-x) + (y*32)]));
+     tft.fillRect(tft.cursor_x + 8 + x*scale, tft.cursor_y + 8 + y*scale, scale, scale, getFalseColor(pixels[(31-x) + (y*32)]));
+    }
+  }
+}
     }
   }
 }
@@ -167,16 +262,23 @@ void MLXCamera::drawImage() const
 void MLXCamera::drawLegend() const
 {
   const int legendSize = 20;
-  float inc = (maxTemp - minTemp) / tft.width();
-  int j = 0;
-  for (float ii = minTemp; ii < maxTemp; ii += inc) {
-    tft.drawFastVLine(tft.cursor_x + j++, tft.height() - legendSize, legendSize, getColor(ii));
+    
+  static bool drawedOnce = false;
+  if (!drawedOnce)
+  {
+    float inc = (maxTemp - minTemp) / tft.width();
+    int j = 0;
+    for (float ii = minTemp; ii < maxTemp; ii += inc) {
+      tft.drawFastVLine(tft.cursor_x + j++, tft.height() - legendSize, legendSize, getFalseColor(ii));
+    }
+
+    drawedOnce = true;
   }
 
   tft.setTextFont(1);
   tft.setTextSize(1);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setCursor(0, tft.height() - legendSize - 10);
+  tft.setCursor(2, tft.height() - legendSize - 10);
   tft.print(String(minTemp).substring(0, 4));
   tft.setCursor(tft.width() - 25, tft.height() - legendSize - 10);
   tft.print(String(maxTemp).substring(0, 4));

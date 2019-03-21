@@ -11,10 +11,11 @@ public:
     MLXCamera(TFT_eSPI& tft);
 
     bool init();
+    bool isConnected() const;
 
     void readImage();
 
-    void drawImage() const;
+    void drawImage(int scale) const;
     void drawLegend() const;
     void drawCenterMeasurement() const;
 
@@ -23,6 +24,12 @@ private:
     void setTempScale();
     void setAbcd();
     uint16_t getColor(float val) const;
+    uint16_t getFalseColor(float val) const;
+
+    float getRefreshRateInHz() const;
+    int getResolutionInBit() const;
+    bool isInterleaved() const;
+    bool isChessMode() const;
 
     TFT_eSPI& tft;
 
@@ -30,7 +37,7 @@ private:
     float pixels[768];
 
     float minTemp = 20.0;
-    float maxTemp = 40.0;
+    float maxTemp = 30.0;
 
     // cutoff points for temp to RGB conversion
     float a = 0.0;

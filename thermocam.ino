@@ -15,6 +15,7 @@ void setup() {
     tft.fillScreen(TFT_BLACK);
 
     Serial.begin(115200);
+    while(!Serial);
 
     if (!camera.init())
     {      
@@ -32,11 +33,13 @@ void loop() {
     const long processingTime = millis() - start;
 
     tft.setCursor(0, InfoBarHeight);
-    camera.drawImage();
+    camera.drawImage(7);
     camera.drawLegend();
     camera.drawCenterMeasurement();
 
     const long frameTime = millis() - start;
+
+    Serial.printf("Draw: %d\n", frameTime - processingTime);
 
     infoBar.update(start, processingTime, frameTime);
     if (frameTime < MaxFrameTimeInMillis)
