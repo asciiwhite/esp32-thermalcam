@@ -34,6 +34,7 @@ void loop() {
 
     tft.setCursor(0, InfoBarHeight);
     camera.drawImage(7);
+//    camera.drawImageInterpolated();
     camera.drawLegend();
     camera.drawCenterMeasurement();
 

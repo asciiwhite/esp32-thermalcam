@@ -16,6 +16,7 @@ public:
     void readImage();
 
     void drawImage(int scale) const;
+    void drawImageInterpolated() const;
     void drawLegend() const;
     void drawCenterMeasurement() const;
 

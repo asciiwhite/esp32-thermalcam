@@ -1,4 +1,5 @@
 #include "mlxcamera.h"
+#include "interpolation.h"
 
 #include "MLX90640_API.h"
 #include "MLX90640_I2C_Driver.h"
@@ -255,6 +256,15 @@ void MLXCamera::drawImage(int scale) const
     }
   }
 }
+
+void MLXCamera::drawImageInterpolated() const
+{
+  static float upscaled[768 * 4];
+  interpolate_image(pixels, 24, 32, upscaled, 48, 64);
+
+  for (int y=0; y<48; y++) {
+    for (int x=0; x<64; x++) {
+     tft.fillRect(tft.cursor_x + 24 + x*3, tft.cursor_y + 8 + y*3, 3, 3, getColor(upscaled[(63-x) + (y*64)]));
     }
   }
 }
