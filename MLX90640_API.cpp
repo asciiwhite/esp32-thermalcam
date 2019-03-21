@@ -48,8 +48,12 @@ int MLX90640_GetFrameData(uint8_t slaveAddr, uint16_t *frameData)
     uint16_t statusRegister;
     int error = 1;
     uint8_t cnt = 0;
+    uint8_t wait_cnt = 0;
     
     dataReady = 0;
+
+    long start = millis(); 
+    
     while(dataReady == 0)
     {
         error = MLX90640_I2CRead(slaveAddr, 0x8000, 1, &statusRegister);
@@ -58,7 +62,10 @@ int MLX90640_GetFrameData(uint8_t slaveAddr, uint16_t *frameData)
             return error;
         }    
         dataReady = statusRegister & 0x0008;
+        wait_cnt++;
     }       
+
+    long wait = millis(); 
         
     while(dataReady != 0 && cnt < 5)
     { 
@@ -82,6 +89,8 @@ int MLX90640_GetFrameData(uint8_t slaveAddr, uint16_t *frameData)
         dataReady = statusRegister & 0x0008;
         cnt = cnt + 1;
     }
+
+    long rread = millis(); 
     
     if(cnt > 4)
     {
@@ -89,14 +98,16 @@ int MLX90640_GetFrameData(uint8_t slaveAddr, uint16_t *frameData)
     }    
     
     error = MLX90640_I2CRead(slaveAddr, 0x800D, 1, &controlRegister1);
-    frameData[832] = controlRegister1;
-    frameData[833] = statusRegister & 0x0001;
-    
     if(error != 0)
     {
         return error;
     }
     
+    frameData[832] = controlRegister1;
+    frameData[833] = statusRegister & 0x0001;
+
+    Serial.printf("Page: %d Wait: %d,%d Read: %d,%d", frameData[833], wait - start, wait_cnt, rread - wait, cnt);
+
     return frameData[833];    
 }
 
