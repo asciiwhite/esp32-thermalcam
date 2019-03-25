@@ -29,10 +29,14 @@ public:
     bool isConnected() const;
 
     void readImage();
+    
     void drawImage(int scale, InterpolationType) const;
     void drawLegendGraph() const;
     void drawLegendText() const;
     void drawCenterMeasurement() const;
+
+    void setFixedTemperatureRange();
+    void setDynamicTemperatureRange();
 
 private:
     void readPixels();
@@ -52,6 +56,7 @@ private:
     // array for the 32 x 24 measured pixels
     float pixels[768];
 
+    bool fixedTemperatureRange = true;
     float minTemp = 20.0;
     float maxTemp = 45.0;
 

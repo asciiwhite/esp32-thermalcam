@@ -10,6 +10,7 @@ const uint32_t InfoBarHeight = 10;
 const uint32_t MaxFrameTimeInMillis = 33;
 
 InterpolationType interpolationType = InterpolationType::eLinear;
+bool fixedTemperatureRange = true;
 
 void setup() {
     tft.init();
@@ -38,8 +39,19 @@ void loop() {
 
     uint16_t dummyX = 0, dummyY = 0;
     if (tft.getTouch(&dummyX, &dummyY))
-      interpolationType++;
-
+    {
+      if (dummyX > 80)
+        interpolationType++;
+      else
+      {
+        fixedTemperatureRange = !fixedTemperatureRange;
+        if (fixedTemperatureRange)
+          camera.setFixedTemperatureRange();
+        else
+          camera.setDynamicTemperatureRange();
+      }
+    }
+    
     tft.setCursor(0, InfoBarHeight);
     camera.drawImage(interpolationType == InterpolationType::eNone ? 9 : 3, interpolationType);
     camera.drawLegendText();

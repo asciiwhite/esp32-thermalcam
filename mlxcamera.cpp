@@ -122,11 +122,23 @@ bool MLXCamera::isChessMode() const
    return MLX90640_GetCurMode(MLX90640_address) == 1;
 }
 
+void MLXCamera::setFixedTemperatureRange()
+{
+  fixedTemperatureRange = true;
+  minTemp = 20.0;
+  maxTemp = 45.0;
+}
+
+void MLXCamera::setDynamicTemperatureRange()
+{
+  fixedTemperatureRange = false;
+}
+
 void MLXCamera::readImage()
 {
 #ifndef DEBUG_INTERPOLATION
   readPixels();
-//  setTempScale();
+  setTempScale();
 #endif
 }
 
@@ -237,6 +249,9 @@ uint16_t MLXCamera::getColor(float val) const
 
 void MLXCamera::setTempScale()
 {
+  if (fixedTemperatureRange)
+    return;
+
   minTemp = 255.f;
   maxTemp = 0.f;
 
