@@ -5,6 +5,21 @@
 
 class TFT_eSPI;
 
+enum class InterpolationType {
+  eNone,
+  eLinear,
+  eCubic
+};
+
+inline InterpolationType& operator++(InterpolationType& type, int)
+{
+    if (type == InterpolationType::eCubic)
+      type = InterpolationType::eNone;
+    else
+      type = static_cast<InterpolationType>(static_cast<int>(type) + 1);
+    return type;
+};
+
 class MLXCamera
 {
 public:
@@ -14,10 +29,9 @@ public:
     bool isConnected() const;
 
     void readImage();
-
-    void drawImage(int scale) const;
-    void drawImageInterpolated() const;
-    void drawLegend() const;
+    void drawImage(int scale, InterpolationType) const;
+    void drawLegendGraph() const;
+    void drawLegendText() const;
     void drawCenterMeasurement() const;
 
 private:
@@ -26,6 +40,7 @@ private:
     void setAbcd();
     uint16_t getColor(float val) const;
     uint16_t getFalseColor(float val) const;
+    void drawImage(const float *pixelData, int width, int height, int scale) const;
 
     float getRefreshRateInHz() const;
     int getResolutionInBit() const;
@@ -38,7 +53,7 @@ private:
     float pixels[768];
 
     float minTemp = 20.0;
-    float maxTemp = 30.0;
+    float maxTemp = 45.0;
 
     // cutoff points for temp to RGB conversion
     float a = 0.0;

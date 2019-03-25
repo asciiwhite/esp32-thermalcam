@@ -11,9 +11,15 @@ paramsMLX90640 mlx90640;
 #include <SPI.h>
 #include <Wire.h>
 
+//#define DEBUG_INTERPOLATION
+
 MLXCamera::MLXCamera(TFT_eSPI& _tft)
  : tft(_tft)
 {
+#ifdef DEBUG_INTERPOLATION
+   for (int i = 0; i < 768; i++)
+    pixels[i] = ((i + i / 32) % 2) == 0 ? 20.f : 30.f;
+#endif
 }
 
 bool MLXCamera::init()
@@ -118,8 +124,10 @@ bool MLXCamera::isChessMode() const
 
 void MLXCamera::readImage()
 {
+#ifndef DEBUG_INTERPOLATION
   readPixels();
-  setTempScale();
+//  setTempScale();
+#endif
 }
 
 void MLXCamera::readPixels()
@@ -159,6 +167,7 @@ uint16_t MLXCamera::getFalseColor(float value) const
     // Heatmap code borrowed from: http://www.andrewnoske.com/wiki/Code_-_heatmaps_and_color_gradients
     static float color[][3] = { {0,0,0}, {0,0,255}, {0,255,0}, {255,255,0}, {255,0,0}, {255,0,255} };
 //    static const float color[][3] = { {0,0,20}, {0,0,100}, {80,0,160}, {220,40,180}, {255,200,20}, {255,235,20}, {255,255,255} };
+
     static const int NUM_COLORS = sizeof(color) / sizeof(color[0]);
     value = (value - minTemp) / (maxTemp-minTemp);
     
@@ -228,8 +237,8 @@ uint16_t MLXCamera::getColor(float val) const
 
 void MLXCamera::setTempScale()
 {
-  minTemp = 255;
-  maxTemp = 0;
+  minTemp = 255.f;
+  maxTemp = 0.f;
 
   for (int i = 0; i < 768; i++) {
     minTemp = min(minTemp, pixels[i]);
@@ -248,55 +257,59 @@ void MLXCamera::setAbcd()
   d = minTemp + (maxTemp - minTemp) * 0.8182;
 }
 
-void MLXCamera::drawImage(int scale) const
+void MLXCamera::drawImage(const float *pixelData, int width, int height, int scale) const
 {
-  for (int y=0; y<24; y++) {
-    for (int x=0; x<32; x++) {
-     tft.fillRect(tft.cursor_x + 8 + x*scale, tft.cursor_y + 8 + y*scale, scale, scale, getFalseColor(pixels[(31-x) + (y*32)]));
+  for (int y=0; y<height; y++) {
+    for (int x=0; x<width; x++) {
+      tft.fillRect(tft.cursor_x + x*scale, tft.cursor_y + 10 + y*scale, scale, scale, getFalseColor(pixelData[(width-1-x) + (y*width)]));
     }
   }
 }
 
-void MLXCamera::drawImageInterpolated() const
+void MLXCamera::drawImage(int scale, InterpolationType interpolationType) const
 {
-  static float upscaled[768 * 4];
-  interpolate_image(pixels, 24, 32, upscaled, 48, 64);
+  if (interpolationType == InterpolationType::eNone) {
+    drawImage(pixels, 32, 24, scale);
+  }
+  else {
+    const int upscaleFactor = 3;
+    const int newWidth  = (32 - 1) * upscaleFactor + 1;
+    const int newHeight = (24 - 1) * upscaleFactor + 1;
+    static float upscaled[newWidth * newHeight];
 
-  for (int y=0; y<48; y++) {
-    for (int x=0; x<64; x++) {
-     tft.fillRect(tft.cursor_x + 24 + x*3, tft.cursor_y + 8 + y*3, 3, 3, getColor(upscaled[(63-x) + (y*64)]));
-    }
+    if (interpolationType == InterpolationType::eLinear)
+      interpolate_image_bilinear(pixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
+    else
+      interpolate_image_bicubic(pixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
+
+    drawImage(upscaled, newWidth, newHeight, scale);
   }
 }
 
-void MLXCamera::drawLegend() const
+void MLXCamera::drawLegendGraph() const
 {
-  const int legendSize = 20;
-    
-  static bool drawedOnce = false;
-  if (!drawedOnce)
-  {
-    float inc = (maxTemp - minTemp) / tft.width();
-    int j = 0;
-    for (float ii = minTemp; ii < maxTemp; ii += inc) {
-      tft.drawFastVLine(tft.cursor_x + j++, tft.height() - legendSize, legendSize, getFalseColor(ii));
-    }
-
-    drawedOnce = true;
-  }
-
+  const int legendSize = 15;    
+  const float inc = (maxTemp - minTemp) / (tft.height() - 24 - 20);
+  int j = 0;
+  for (float ii = maxTemp; ii >= minTemp; ii -= inc)
+    tft.drawFastHLine(tft.width() - legendSize - 6, tft.cursor_y + 34 + j++, legendSize, getFalseColor(ii));
+}
+ 
+void MLXCamera::drawLegendText() const
+{
   tft.setTextFont(1);
   tft.setTextSize(1);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setCursor(2, tft.height() - legendSize - 10);
+  tft.setCursor(tft.width() - 25, tft.height() - 10);
   tft.print(String(minTemp).substring(0, 4));
-  tft.setCursor(tft.width() - 25, tft.height() - legendSize - 10);
+  tft.setCursor(tft.width() - 25, 20);
   tft.print(String(maxTemp).substring(0, 4));
 }
 
 // Draw a circle + measured value.
 void MLXCamera::drawCenterMeasurement() const
 {
+  return;
   // Mark center measurement
   tft.drawCircle(120, 8+84, 3, TFT_WHITE);
 

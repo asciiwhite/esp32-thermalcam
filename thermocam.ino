@@ -9,9 +9,11 @@ InfoBar infoBar = InfoBar(tft);
 const uint32_t InfoBarHeight = 10;
 const uint32_t MaxFrameTimeInMillis = 33;
 
+InterpolationType interpolationType = InterpolationType::eLinear;
+
 void setup() {
     tft.init();
-    tft.setRotation(0);
+    tft.setRotation(3);
     tft.fillScreen(TFT_BLACK);
 
     Serial.begin(115200);
@@ -23,6 +25,8 @@ void setup() {
       tft.print("No camera detected!");
       vTaskDelete(NULL); // remove loop task
     }
+
+    camera.drawLegendGraph();
 }
 
 void loop() {
@@ -32,10 +36,13 @@ void loop() {
 
     const long processingTime = millis() - start;
 
+    uint16_t dummyX = 0, dummyY = 0;
+    if (tft.getTouch(&dummyX, &dummyY))
+      interpolationType++;
+
     tft.setCursor(0, InfoBarHeight);
-    camera.drawImage(7);
-//    camera.drawImageInterpolated();
-    camera.drawLegend();
+    camera.drawImage(interpolationType == InterpolationType::eNone ? 9 : 3, interpolationType);
+    camera.drawLegendText();
     camera.drawCenterMeasurement();
 
     const long frameTime = millis() - start;
