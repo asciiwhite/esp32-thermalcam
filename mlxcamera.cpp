@@ -18,7 +18,7 @@ MLXCamera::MLXCamera(TFT_eSPI& _tft)
 {
 #ifdef DEBUG_INTERPOLATION
    for (int i = 0; i < 768; i++)
-    pixels[i] = ((i + i / 32) % 2) == 0 ? 20.f : 30.f;
+    rawPixels[i] = ((i + i / 32) % 2) == 0 ? 20.f : 30.f;
 #endif
 }
 
@@ -163,12 +163,12 @@ void MLXCamera::readPixels()
       }
     }
 
-    long start = millis(); 
+    const long start = millis(); 
     
-    float Ta = MLX90640_GetTa(mlx90640Frame, &mlx90640);    
-    float tr = Ta - TA_SHIFT; //Reflected temperature based on the sensor ambient temperature  
+    const float Ta = MLX90640_GetTa(mlx90640Frame, &mlx90640);    
+    const float tr = Ta - TA_SHIFT; //Reflected temperature based on the sensor ambient temperature  
     
-    MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, pixels);
+    MLX90640_CalculateTo(mlx90640Frame, &mlx90640, emissivity, tr, rawPixels);
 
     Serial.printf(" Calculate: %d\n", millis() - start);
   }
@@ -256,8 +256,8 @@ void MLXCamera::setTempScale()
   maxTemp = 0.f;
 
   for (int i = 0; i < 768; i++) {
-    minTemp = min(minTemp, pixels[i]);
-    maxTemp = max(maxTemp, pixels[i]);
+    minTemp = min(minTemp, filteredPixels[i]);
+    maxTemp = max(maxTemp, filteredPixels[i]);
   }
 
   setAbcd();
@@ -281,10 +281,23 @@ void MLXCamera::drawImage(const float *pixelData, int width, int height, int sca
   }
 }
 
+// exponential filtering https://en.wikipedia.org/wiki/Exponential_smoothing
+void MLXCamera::denoiseRawPixels(const float smoothingFactor) const
+{
+  const long start = millis();
+
+  for (int i = 0; i < 768; i++)
+      filteredPixels[i] = rawPixels[i] * smoothingFactor + filteredPixels[i] * (1.f - smoothingFactor);
+
+  Serial.printf("Denoising: %d ", millis() - start);
+}
+
 void MLXCamera::drawImage(int scale, InterpolationType interpolationType) const
 {
+  denoiseRawPixels(0.4f);
+  
   if (interpolationType == InterpolationType::eNone) {
-    drawImage(pixels, 32, 24, scale);
+    drawImage(filteredPixels, 32, 24, scale);
   }
   else {
     const int upscaleFactor = 3;
@@ -293,9 +306,9 @@ void MLXCamera::drawImage(int scale, InterpolationType interpolationType) const
     static float upscaled[newWidth * newHeight];
 
     if (interpolationType == InterpolationType::eLinear)
-      interpolate_image_bilinear(pixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
+      interpolate_image_bilinear(filteredPixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
     else
-      interpolate_image_bicubic(pixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
+      interpolate_image_bicubic(filteredPixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
 
     drawImage(upscaled, newWidth, newHeight, scale);
   }

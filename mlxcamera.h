@@ -45,6 +45,7 @@ private:
     uint16_t getColor(float val) const;
     uint16_t getFalseColor(float val) const;
     void drawImage(const float *pixelData, int width, int height, int scale) const;
+    void denoiseRawPixels(const float smoothingFactor) const;
 
     float getRefreshRateInHz() const;
     int getResolutionInBit() const;
@@ -54,7 +55,8 @@ private:
     TFT_eSPI& tft;
 
     // array for the 32 x 24 measured pixels
-    float pixels[768];
+    float rawPixels[768] = {0};
+    mutable float filteredPixels[768]= {0};
 
     bool fixedTemperatureRange = true;
     float minTemp = 20.0;
