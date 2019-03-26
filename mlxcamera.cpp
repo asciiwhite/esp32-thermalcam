@@ -13,6 +13,12 @@ paramsMLX90640 mlx90640;
 
 //#define DEBUG_INTERPOLATION
 
+namespace {
+  float mapf(float x, float in_min, float in_max, float out_min, float out_max) {
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+  }
+}
+
 MLXCamera::MLXCamera(TFT_eSPI& _tft)
  : tft(_tft)
 {
@@ -317,7 +323,7 @@ void MLXCamera::drawImage(int scale, InterpolationType interpolationType) const
 void MLXCamera::drawLegendGraph() const
 {
   const int legendSize = 15;    
-  const float inc = (maxTemp - minTemp) / (tft.height() - 24 - 20);
+  const float inc = (maxTemp - minTemp) / (tft.height() - 25 - 25);
   int j = 0;
   for (float ii = maxTemp; ii >= minTemp; ii -= inc)
     tft.drawFastHLine(tft.width() - legendSize - 6, tft.cursor_y + 34 + j++, legendSize, getFalseColor(ii));
@@ -334,18 +340,35 @@ void MLXCamera::drawLegendText() const
   tft.print(String(maxTemp).substring(0, 4));
 }
 
-// Draw a circle + measured value.
 void MLXCamera::drawCenterMeasurement() const
 {
-  return;
-  // Mark center measurement
-  tft.drawCircle(120, 8+84, 3, TFT_WHITE);
+  tft.drawCircle(32 * 9 / 2, 24 * 9 / 2 + 20 - 1, 3, TFT_WHITE);
+  
+  const float avgCenterTemperature = (filteredPixels[383 - 16] + filteredPixels[383 - 15] + filteredPixels[384 + 15] + filteredPixels[384 + 16]) * 0.25f;
+  const int32_t legendPixelLength = tft.height() - 25 - 25;
+  const int32_t centerOffset = mapf(avgCenterTemperature, minTemp, maxTemp, 0, legendPixelLength);
+  
+  const int32_t positionX = 296; //tft.width() - legendSize - 6
+  const int32_t positionY = tft.height() - 15 - centerOffset;
 
-  // Measure and print center temperature
-  const float centerTemp = (pixels[383 - 16] + pixels[383 - 15] + pixels[384 + 15] + pixels[384 + 16]) / 4;
-  tft.setCursor(86, 214);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setTextFont(2);
-  tft.setTextSize(2);
-  tft.print(String(centerTemp).substring(0, 4) + " °C");
+  const int32_t height = 6;
+  const int32_t width  = 6;
+
+  static int32_t x0;
+  static int32_t y0;
+  static int32_t x1;
+  static int32_t y1;
+  static int32_t x2;
+  static int32_t y2;
+
+  tft.fillTriangle(x0, y0, x1, y1, x2, y2, TFT_BLACK);
+  
+  x0 = positionX;
+  y0 = positionY;
+  x1 = positionX - width;
+  y1 = positionY - (height / 2);
+  x2 = x1;
+  y2 = positionY + (height / 2);
+  
+  tft.fillTriangle(x0, y0, x1, y1, x2, y2, TFT_WHITE);
 }
