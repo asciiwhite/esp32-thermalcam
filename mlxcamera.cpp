@@ -342,7 +342,11 @@ void MLXCamera::drawLegendText() const
 
 void MLXCamera::drawCenterMeasurement() const
 {
-  tft.drawCircle(32 * 9 / 2, 24 * 9 / 2 + 20 - 1, 3, TFT_WHITE);
+  const int32_t centerX = 32 * 9 / 2;
+  const int32_t centerY = 24 * 9 / 2 + 20 - 1;
+  const int32_t halfCrossSize = 3; 
+  tft.drawFastHLine(centerX - halfCrossSize, centerY, 2 * halfCrossSize + 1, TFT_WHITE);
+  tft.drawFastVLine(centerX, centerY - halfCrossSize, 2 * halfCrossSize + 1, TFT_WHITE);
   
   const float avgCenterTemperature = (filteredPixels[383 - 16] + filteredPixels[383 - 15] + filteredPixels[384 + 15] + filteredPixels[384 + 16]) * 0.25f;
   const int32_t legendPixelLength = tft.height() - 25 - 25;
