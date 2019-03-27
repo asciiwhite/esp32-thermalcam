@@ -132,8 +132,8 @@ bool MLXCamera::isChessMode() const
 void MLXCamera::setFixedTemperatureRange()
 {
   fixedTemperatureRange = true;
-  minTemp = 20.0;
-  maxTemp = 45.0;
+  minTemp = defaultMinTemp;
+  maxTemp = defaultMaxTemp;
 }
 
 void MLXCamera::setDynamicTemperatureRange()

@@ -66,9 +66,11 @@ private:
     static constexpr int upScaledHeight = (sensorHeight - 1) * upscaleFactor + 1;
     std::array<float, upScaledWidth * upScaledHeight> upscaledPixels;
 
+    static constexpr float defaultMinTemp = 20.f;
+    static constexpr float defaultMaxTemp = 45.f;
+    float minTemp = defaultMinTemp;
+    float maxTemp = defaultMaxTemp;
     bool fixedTemperatureRange = true;
-    float minTemp = 20.0;
-    float maxTemp = 45.0;
 
     static constexpr float denoisingSmoothingFactor = 0.4f;
     static constexpr float sensorEmissivity = 0.95f;
