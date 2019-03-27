@@ -1,5 +1,6 @@
 #include "mlxcamera.h"
 #include "interpolation.h"
+#include "filters.h"
 
 #include "MLX90640_API.h"
 #include "MLX90640_I2C_Driver.h"
@@ -287,13 +288,12 @@ void MLXCamera::drawImage(const float *pixelData, int width, int height, int sca
   }
 }
 
-// exponential filtering https://en.wikipedia.org/wiki/Exponential_smoothing
 void MLXCamera::denoiseRawPixels(const float smoothingFactor) const
 {
   const long start = millis();
 
   for (int i = 0; i < 768; i++)
-      filteredPixels[i] = rawPixels[i] * smoothingFactor + filteredPixels[i] * (1.f - smoothingFactor);
+      filteredPixels[i] = filterExponentional(rawPixels[i], filteredPixels[i], smoothingFactor);
 
   Serial.printf("Denoising: %d ", millis() - start);
 }
