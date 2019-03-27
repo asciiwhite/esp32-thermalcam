@@ -53,13 +53,11 @@ void loop() {
     }
     
     tft.setCursor(0, InfoBarHeight);
-    camera.drawImage(interpolationType == InterpolationType::eNone ? 9 : 3, interpolationType);
+    camera.drawImage(interpolationType);
     camera.drawLegendText();
     camera.drawCenterMeasurement();
 
     const long frameTime = millis() - start;
-
-    Serial.printf("Draw: %d\n", frameTime - processingTime);
 
     infoBar.update(start, processingTime, frameTime);
     if (frameTime < MaxFrameTimeInMillis)

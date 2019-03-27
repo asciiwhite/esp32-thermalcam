@@ -30,7 +30,7 @@ public:
 
     void readImage();
     
-    void drawImage(int scale, InterpolationType) const;
+    void drawImage(InterpolationType);
     void drawLegendGraph() const;
     void drawLegendText() const;
     void drawCenterMeasurement() const;
@@ -45,7 +45,8 @@ private:
     uint16_t getColor(float val) const;
     uint16_t getFalseColor(float val) const;
     void drawImage(const float *pixelData, int width, int height, int scale) const;
-    void denoiseRawPixels(const float smoothingFactor) const;
+    void denoiseRawPixels(const float smoothingFactor);
+    void interpolateImage(InterpolationType interpolationType);
 
     float getRefreshRateInHz() const;
     int getResolutionInBit() const;
@@ -56,11 +57,18 @@ private:
 
     // array for the 32 x 24 measured pixels
     float rawPixels[768] = {0};
-    mutable float filteredPixels[768]= {0};
+    float filteredPixels[768] = {0};
+
+    static const int upscaleFactor  = 3;
+    static const int upScaledWidth  = (32 - 1) * upscaleFactor + 1;
+    static const int upScaledHeight = (24 - 1) * upscaleFactor + 1;
+    float upscaledPixels[upScaledWidth * upScaledHeight] = {0};
 
     bool fixedTemperatureRange = true;
     float minTemp = 20.0;
     float maxTemp = 45.0;
+
+    const float denoisingSmoothingFactor = 0.4f;
 
     // cutoff points for temp to RGB conversion
     float a = 0.0;

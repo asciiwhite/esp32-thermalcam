@@ -281,14 +281,18 @@ void MLXCamera::setAbcd()
 
 void MLXCamera::drawImage(const float *pixelData, int width, int height, int scale) const
 {
+  const long start = millis();
+    
   for (int y=0; y<height; y++) {
     for (int x=0; x<width; x++) {
       tft.fillRect(tft.cursor_x + x*scale, tft.cursor_y + 10 + y*scale, scale, scale, getFalseColor(pixelData[(width-1-x) + (y*width)]));
     }
   }
+
+  Serial.printf("Draw: %d\n", millis() - start);
 }
 
-void MLXCamera::denoiseRawPixels(const float smoothingFactor) const
+void MLXCamera::denoiseRawPixels(const float smoothingFactor)
 {
   const long start = millis();
 
@@ -298,25 +302,30 @@ void MLXCamera::denoiseRawPixels(const float smoothingFactor) const
   Serial.printf("Denoising: %d ", millis() - start);
 }
 
-void MLXCamera::drawImage(int scale, InterpolationType interpolationType) const
+void MLXCamera::interpolateImage(InterpolationType interpolationType)
 {
-  denoiseRawPixels(0.4f);
-  
-  if (interpolationType == InterpolationType::eNone) {
-    drawImage(filteredPixels, 32, 24, scale);
+  const long start = millis();
+
+  if (interpolationType == InterpolationType::eLinear)
+    interpolate_image_bilinear(filteredPixels, 24, 32, upscaledPixels, upScaledHeight, upScaledWidth, upscaleFactor);
+  else
+    interpolate_image_bicubic(filteredPixels, 24, 32, upscaledPixels, upScaledHeight, upScaledWidth, upscaleFactor);
+
+  Serial.printf("Interpolation: %d ", millis() - start);
+}
+
+void MLXCamera::drawImage(InterpolationType interpolationType)
+{
+  denoiseRawPixels(denoisingSmoothingFactor);
+
+  if (interpolationType == InterpolationType::eNone)
+  {
+    drawImage(filteredPixels, 32, 24, 9);
   }
-  else {
-    const int upscaleFactor = 3;
-    const int newWidth  = (32 - 1) * upscaleFactor + 1;
-    const int newHeight = (24 - 1) * upscaleFactor + 1;
-    static float upscaled[newWidth * newHeight];
-
-    if (interpolationType == InterpolationType::eLinear)
-      interpolate_image_bilinear(filteredPixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
-    else
-      interpolate_image_bicubic(filteredPixels, 24, 32, upscaled, newHeight, newWidth, upscaleFactor);
-
-    drawImage(upscaled, newWidth, newHeight, scale);
+  else
+  {
+    interpolateImage(interpolationType);    
+    drawImage(upscaledPixels, upScaledWidth, upScaledHeight, 3);
   }
 }
 
