@@ -24,8 +24,8 @@ MLXCamera::MLXCamera(TFT_eSPI& _tft)
  : tft(_tft)
 {
 #ifdef DEBUG_INTERPOLATION
-   for (int i = 0; i < sensorWidth * sensorHeight; i++)
-    measuredPixels[i] = ((i + i / sensorWidth) % 2) == 0 ? 20.f : 30.f;
+   for (int i = 0; i < SensorWidth * SensorHeight; i++)
+    measuredPixels[i] = ((i + i / SensorWidth) % 2) == 0 ? 20.f : 30.f;
 #endif
 }
 
@@ -132,8 +132,8 @@ bool MLXCamera::isChessMode() const
 void MLXCamera::setFixedTemperatureRange()
 {
   fixedTemperatureRange = true;
-  minTemp = defaultMinTemp;
-  maxTemp = defaultMaxTemp;
+  minTemp = DefaultMinTemp;
+  maxTemp = DefaultMaxTemp;
 }
 
 void MLXCamera::setDynamicTemperatureRange()
@@ -173,7 +173,7 @@ void MLXCamera::readPixels()
     const float Ta = MLX90640_GetTa(mlx90640Frame, &mlx90640);    
     const float tr = Ta - TA_SHIFT; //Reflected temperature based on the sensor ambient temperature  
     
-    MLX90640_CalculateTo(mlx90640Frame, &mlx90640, sensorEmissivity, tr, measuredPixels.data());
+    MLX90640_CalculateTo(mlx90640Frame, &mlx90640, SensorEmissivity, tr, measuredPixels.data());
 
     Serial.printf(" Calculate: %d\n", millis() - start);
   }
@@ -290,7 +290,7 @@ void MLXCamera::denoiseRawPixels(const float smoothingFactor)
 {
   const long start = millis();
 
-  for (int i = 0; i < sensorWidth * sensorHeight; i++)
+  for (int i = 0; i < SensorWidth * SensorHeight; i++)
       filteredPixels[i] = filterExponentional(measuredPixels[i], filteredPixels[i], smoothingFactor);
 
   Serial.printf("Denoising: %d ", millis() - start);
@@ -301,25 +301,25 @@ void MLXCamera::interpolateImage(InterpolationType interpolationType)
   const long start = millis();
 
   if (interpolationType == InterpolationType::eLinear)
-    interpolate_image_bilinear(filteredPixels.data(), sensorHeight, sensorWidth, upscaledPixels.data(), upScaledHeight, upScaledWidth, upscaleFactor);
+    interpolate_image_bilinear(filteredPixels.data(), SensorHeight, SensorWidth, upscaledPixels.data(), UpScaledHeight, UpScaledWidth, UpScaleFactor);
   else
-    interpolate_image_bicubic(filteredPixels.data(), sensorHeight, sensorWidth, upscaledPixels.data(), upScaledHeight, upScaledWidth, upscaleFactor);
+    interpolate_image_bicubic(filteredPixels.data(), SensorHeight, SensorWidth, upscaledPixels.data(), UpScaledHeight, UpScaledWidth, UpScaleFactor);
 
   Serial.printf("Interpolation: %d ", millis() - start);
 }
 
 void MLXCamera::drawImage(InterpolationType interpolationType)
 {
-  denoiseRawPixels(denoisingSmoothingFactor);
+  denoiseRawPixels(DenoisingSmoothingFactor);
 
   if (interpolationType == InterpolationType::eNone)
   {
-    drawImage(filteredPixels.data(), sensorWidth, sensorHeight, 9);
+    drawImage(filteredPixels.data(), SensorWidth, SensorHeight, 9);
   }
   else
   {
     interpolateImage(interpolationType);    
-    drawImage(upscaledPixels.data(), upScaledWidth, upScaledHeight, 3);
+    drawImage(upscaledPixels.data(), UpScaledWidth, UpScaledHeight, 3);
   }
 }
 
@@ -345,8 +345,8 @@ void MLXCamera::drawLegendText() const
 
 void MLXCamera::drawCenterMeasurement() const
 {
-  const int32_t centerX = sensorWidth  * 9 / 2;
-  const int32_t centerY = sensorHeight * 9 / 2 + 20 - 1;
+  const int32_t centerX = SensorWidth  * 9 / 2;
+  const int32_t centerY = SensorHeight * 9 / 2 + 20 - 1;
   const int32_t halfCrossSize = 3; 
   tft.drawFastHLine(centerX - halfCrossSize, centerY, 2 * halfCrossSize + 1, TFT_WHITE);
   tft.drawFastVLine(centerX, centerY - halfCrossSize, 2 * halfCrossSize + 1, TFT_WHITE);

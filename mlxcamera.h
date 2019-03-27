@@ -56,24 +56,24 @@ private:
 
     TFT_eSPI& tft;
 
-    static constexpr int sensorWidth  = 32;
-    static constexpr int sensorHeight = 24;    
-    std::array<float, sensorWidth * sensorHeight> measuredPixels;
-    std::array<float, sensorWidth * sensorHeight> filteredPixels;
+    static constexpr int SensorWidth  = 32;
+    static constexpr int SensorHeight = 24;
+    std::array<float, SensorWidth * SensorHeight> measuredPixels;
+    std::array<float, SensorWidth * SensorHeight> filteredPixels;
 
-    static constexpr int upscaleFactor  = 3;
-    static constexpr int upScaledWidth  = (sensorWidth  - 1) * upscaleFactor + 1;
-    static constexpr int upScaledHeight = (sensorHeight - 1) * upscaleFactor + 1;
-    std::array<float, upScaledWidth * upScaledHeight> upscaledPixels;
+    static constexpr int UpScaleFactor  = 3;
+    static constexpr int UpScaledWidth  = (SensorWidth  - 1) * UpScaleFactor + 1;
+    static constexpr int UpScaledHeight = (SensorHeight - 1) * UpScaleFactor + 1;
+    std::array<float, UpScaledWidth * UpScaledHeight> upscaledPixels;
 
-    static constexpr float defaultMinTemp = 20.f;
-    static constexpr float defaultMaxTemp = 45.f;
-    float minTemp = defaultMinTemp;
-    float maxTemp = defaultMaxTemp;
+    static constexpr float DefaultMinTemp = 20.f;
+    static constexpr float DefaultMaxTemp = 45.f;
+    float minTemp = DefaultMinTemp;
+    float maxTemp = DefaultMaxTemp;
     bool fixedTemperatureRange = true;
 
-    static constexpr float denoisingSmoothingFactor = 0.4f;
-    static constexpr float sensorEmissivity = 0.95f;
+    static constexpr float DenoisingSmoothingFactor = 0.4f;
+    static constexpr float SensorEmissivity = 0.95f;
 
     // cutoff points for temp to RGB conversion
     float a = 0.0;
