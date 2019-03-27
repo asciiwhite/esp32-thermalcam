@@ -2,6 +2,7 @@
 #define H_MLXCAMERA
 
 #include <Arduino.h>
+#include <array>
 
 class TFT_eSPI;
 
@@ -55,20 +56,22 @@ private:
 
     TFT_eSPI& tft;
 
-    // array for the 32 x 24 measured pixels
-    float rawPixels[768] = {0};
-    float filteredPixels[768] = {0};
+    static constexpr int sensorWidth  = 32;
+    static constexpr int sensorHeight = 24;    
+    std::array<float, sensorWidth * sensorHeight> measuredPixels;
+    std::array<float, sensorWidth * sensorHeight> filteredPixels;
 
-    static const int upscaleFactor  = 3;
-    static const int upScaledWidth  = (32 - 1) * upscaleFactor + 1;
-    static const int upScaledHeight = (24 - 1) * upscaleFactor + 1;
-    float upscaledPixels[upScaledWidth * upScaledHeight] = {0};
+    static constexpr int upscaleFactor  = 3;
+    static constexpr int upScaledWidth  = (sensorWidth  - 1) * upscaleFactor + 1;
+    static constexpr int upScaledHeight = (sensorHeight - 1) * upscaleFactor + 1;
+    std::array<float, upScaledWidth * upScaledHeight> upscaledPixels;
 
     bool fixedTemperatureRange = true;
     float minTemp = 20.0;
     float maxTemp = 45.0;
 
-    const float denoisingSmoothingFactor = 0.4f;
+    static constexpr float denoisingSmoothingFactor = 0.4f;
+    static constexpr float sensorEmissivity = 0.95f;
 
     // cutoff points for temp to RGB conversion
     float a = 0.0;
