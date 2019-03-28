@@ -79,9 +79,6 @@ bool MLXCamera::init()
   // Once EEPROM has been read at 400kHz we can increase
   Wire.setClock(800000);
 
-  SPI.begin();
-  SPI.setFrequency(80000000L);  
-
   return true;
 }
 
