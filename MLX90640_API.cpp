@@ -108,7 +108,7 @@ int MLX90640_GetFrameData(uint8_t slaveAddr, uint16_t *frameData)
     frameData[832] = controlRegister1;
     frameData[833] = statusRegister & 0x0001;
 
-    Serial.printf("Page: %d Wait: %d,%d Read: %d,%d", frameData[833], wait - start, wait_cnt, rread - wait, cnt);
+//    Serial.printf("Page: %d Wait: %d,%d Read: %d,%d", frameData[833], wait - start, wait_cnt, rread - wait, cnt);
 
     return frameData[833];    
 }
