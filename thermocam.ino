@@ -24,14 +24,32 @@ bool fixedTemperatureRange = true;
 #include <mutex>
 #include <condition_variable>
 
-struct SafeImage {
+template<typename T> 
+class ThreadSafeQueue
+{
+public:
+  T front_and_pop() {
+    std::unique_lock<std::mutex> lock(m);
+    cv.wait(lock, [this]{return !queue.empty();});
+    T resultValue = queue.front();
+    queue.pop();
+    return resultValue;
+  };
+
+  void push(T value) {
+    std::lock_guard<std::mutex> lock(m);
+    queue.push(value);
+    cv.notify_one();
+  }
+
+private:
   std::mutex m;
   std::condition_variable cv;
-  std::queue<int> queue;
+  std::queue<T> queue;
 };
 
-SafeImage readSensorQueue;
-SafeImage presentationQueue;
+ThreadSafeQueue<int> readSensorQueue;
+ThreadSafeQueue<int> presentationQueue;
 
 Image images[] = { Image(32, 24), Image(32, 24) };
 
@@ -56,12 +74,12 @@ void setup() {
 
     renderer.drawLegendGraph();
 
-    readSensorQueue.queue.push(0);
-    readSensorQueue.queue.push(1);
+    readSensorQueue.push(0);
+    readSensorQueue.push(1);
 
     xTaskCreatePinnedToCore(
                     presentationTask,   /* Function to implement the task */
-                    "coreTask", /* Name of the task */
+                    "presentationTask", /* Name of the task */
                     10000,      /* Stack size in words */
                     NULL,       /* Task input parameter */
                     0,          /* Priority of the task */
@@ -89,42 +107,18 @@ void handleTouch()
 }
 
 void loop() {
-    Serial.printf("Frame %d: Wait for sensor read\n", frameId);
-
-    int readyImageID = 0;
-  {
-    std::unique_lock<std::mutex> lk(readSensorQueue.m);
-    readSensorQueue.cv.wait(lk, []{return !readSensorQueue.queue.empty();});
-    readyImageID = readSensorQueue.queue.front();
-    readSensorQueue.queue.pop();
-  }
-  
-  Serial.printf("Frame %d: Do sensor reading bufferId: %d\n", frameId, readyImageID);
+  const int readyImageID = readSensorQueue.front_and_pop();
   
   startTime = millis();
   camera.readImage(images[readyImageID]);
   processingTime = millis() - startTime; 
 
-  std::lock_guard<std::mutex> lk(presentationQueue.m);
-  presentationQueue.queue.push(readyImageID);
-  presentationQueue.cv.notify_one();
+  presentationQueue.push(readyImageID);
 }
 
 void presentationTask(void*) {
   while (1) {
-    Serial.printf("Frame %d: Wait for presentation\n", frameId);
-
-    int presentImageID = 0;
-    {
-      std::unique_lock<std::mutex> lk(presentationQueue.m);
-      presentationQueue.cv.wait(lk, []{return !presentationQueue.queue.empty();});
-      presentImageID = presentationQueue.queue.front();
-      presentationQueue.queue.pop();
-    }
-  
-    Serial.printf("Frame %d: Do presentation bufferId: %d\n", frameId, presentImageID);
-      
-  //    const long start = millis();
+    const int presentImageID = presentationQueue.front_and_pop();
 
     tft.setCursor(0, InfoBarHeight);
     renderer.drawImage(images[presentImageID], interpolationType);
@@ -144,9 +138,7 @@ void presentationTask(void*) {
 
     LOG_PRINT;
     frameId++;
-    
-    std::lock_guard<std::mutex> lk(readSensorQueue.m);
-    readSensorQueue.queue.push(presentImageID);
-    readSensorQueue.cv.notify_one();
+
+    readSensorQueue.push(presentImageID);
   }
 }
