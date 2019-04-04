@@ -2,6 +2,7 @@
 #include "mlxcamera.h"
 #include "renderer.h"
 #include "image.h"
+#include "perfcounter.h"
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI();
@@ -124,13 +125,16 @@ void presentationTask(void*) {
     Serial.printf("Frame %d: Do presentation bufferId: %d\n", frameId, presentImageID);
       
   //    const long start = millis();
-  
-    handleTouch();
-    
-    renderer.drawCenterMeasurement();
-    renderer.drawLegendText();
+
     tft.setCursor(0, InfoBarHeight);
     renderer.drawImage(images[presentImageID], interpolationType);
+
+    {
+      LOG_PERF("Legend&Touch");
+      renderer.drawCenterMeasurement();
+      renderer.drawLegendText();
+      handleTouch();
+    }
 
     const long frameTime = millis() - startTime;
 
@@ -138,10 +142,11 @@ void presentationTask(void*) {
     if (frameTime < MaxFrameTimeInMillis)
       delay(MaxFrameTimeInMillis - frameTime);
 
+    LOG_PRINT;
+    frameId++;
+    
     std::lock_guard<std::mutex> lk(readSensorQueue.m);
     readSensorQueue.queue.push(presentImageID);
     readSensorQueue.cv.notify_one();
-    
-    frameId++;
   }
 }

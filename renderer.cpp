@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "interpolation.h"
 #include "filters.h"
+#include "perfcounter.h"
 
 #include <TFT_eSPI.h>
 
@@ -128,37 +129,31 @@ void SensorRenderer::setAbcd()
 
 void SensorRenderer::drawImage(const Image& image, int scale) const
 {
-  const long start = millis();
+  LOG_PERF("Draw");
     
   for (int y=0; y<image.height; y++) {
     for (int x=0; x<image.width; x++) {
       tft.fillRect(tft.cursor_x + x*scale, tft.cursor_y + 10 + y*scale, scale, scale, getFalseColor(image[(image.width-1-x) + (y*image.width)]));
     }
   }
-
-  Serial.printf("Draw: %d\n", millis() - start);
 }
 
 void SensorRenderer::denoiseRawPixels(const Image& measuredImage)
 {
-  const long start = millis();
+  LOG_PERF("Denoising");
 
   for (int i = 0; i < SensorWidth * SensorHeight; i++)
       filteredPixels[i] = filterExponentional(measuredImage[i], filteredPixels[i], DenoisingSmoothingFactor);
-
-  Serial.printf("Denoising: %d ", millis() - start);
 }
 
 void SensorRenderer::interpolateImage(InterpolationType interpolationType)
 {
-  const long start = millis();
+  LOG_PERF("Interpolation");
 
   if (interpolationType == InterpolationType::eLinear)
     interpolate_image_bilinear(filteredPixels.data(), filteredPixels.height, filteredPixels.width, upscaledPixels.data(), upscaledPixels.height, upscaledPixels.width, UpScaleFactor);
   else
     interpolate_image_bicubic(filteredPixels.data(), filteredPixels.height, filteredPixels.width, upscaledPixels.data(), upscaledPixels.height, upscaledPixels.width, UpScaleFactor);
-
-  Serial.printf("Interpolation: %d ", millis() - start);
 }
 
 void SensorRenderer::drawImage(const Image& image, InterpolationType interpolationType)
