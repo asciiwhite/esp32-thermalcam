@@ -20,16 +20,15 @@ namespace perfCounter
           TimeStamp endTime;
           const char* scopeName;
         };
-        static std::vector<ScopeData> scopes;
+        static std::vector<ScopeData> scopes[2]; // for each cpu core
         static TimeStamp frameStartTime;
         static const int millisPerChar = 10;
 
-        static void nextFrame();
         static void printScope(char cChar, TimeStamp start, TimeStamp end);
       };
 }
 
 #define LOG_PERF(x) static const char* name = x; perfCounter::ScopedArea counter(name);
-#define LOG_PRINT   perfCounter::ScopedArea::print()
+#define LOG_PRINT perfCounter::ScopedArea::print();
 
 #endif

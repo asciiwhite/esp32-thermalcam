@@ -4,24 +4,20 @@
 
 namespace perfCounter
 {
-  std::vector<ScopedArea::ScopeData> ScopedArea::scopes;
+  std::vector<ScopedArea::ScopeData> ScopedArea::scopes[];
   ScopedArea::TimeStamp ScopedArea::frameStartTime = 0;
 
   ScopedArea::ScopedArea(const char* scopeName)
   {
-    scopes.push_back({millis(), 0, scopeName});
+    const int coreId = xPortGetCoreID();
+    scopes[coreId].push_back({millis(), 0, scopeName});
   }
       
   ScopedArea::~ScopedArea()
   {
-    assert(!scopes.empty());
-    scopes.back().endTime = millis();
-  }
-
-  void ScopedArea::nextFrame()
-  {
-    scopes.clear();
-    frameStartTime = millis();
+    const int coreId = xPortGetCoreID();
+    assert(!scopes[coreId].empty());
+    scopes[coreId].back().endTime = millis();
   }
 
   void ScopedArea::printScope(char cChar, TimeStamp start, TimeStamp end)
@@ -33,19 +29,24 @@ namespace perfCounter
 
   void ScopedArea::print()
   { 
-    TimeStamp startTime = frameStartTime;
-    
-    for (const auto& scope : scopes)
-    {      
-      printScope('#', startTime, scope.startTime);      
-      printScope(scope.scopeName[0], scope.startTime, scope.endTime);
-      startTime = scope.endTime;
-    }
-
     const auto currentTime = millis();
-    printScope('#', startTime, currentTime);
-    Serial.printf(" %d ms\n", currentTime - frameStartTime);
 
-    nextFrame();
+    for (int coreId=0; coreId < 2; coreId++)
+    {
+      Serial.printf("Core %d: ", coreId);
+      TimeStamp startTime = frameStartTime;
+      for (const auto& scope : scopes[coreId])
+      {      
+        printScope('#', startTime, scope.startTime);      
+        printScope(scope.scopeName[0], scope.startTime, scope.endTime);
+        startTime = scope.endTime;
+      }      
+      printScope('#', startTime, currentTime);
+      Serial.printf(" %d ms\n", currentTime - frameStartTime);
+      scopes[coreId].clear();
+
+      
+    }
+    frameStartTime = currentTime;
   }
 }
